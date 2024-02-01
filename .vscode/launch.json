@@ -1,0 +1,19 @@
+{
+    "configurations": [
+        {
+            "name": "Python: Quart",
+            "type": "python",
+            "request": "launch",
+            "module": "quart",
+            "env": {
+                "FLASK_DEBUG": "1"
+            },
+            "args": [
+                "run",
+                "--no-reload"
+            ],
+            "jinja": true,
+            "justMyCode": false
+        }
+    ]
+}
