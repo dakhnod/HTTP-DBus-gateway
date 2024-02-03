@@ -16,8 +16,7 @@
 
         <template id="bus-template">
             <div class="bus-instance">
-                <div>
-                    <span id="bus-name"></span>
+                <div id="bus-name">
                 </div>
                 <div id="paths-container">
                 </div>
@@ -48,7 +47,17 @@
 
         <template id="member-template">
             <div class="member-instance">
-                <span id="name"></span>
+                <div id="name"></div>
+                <div id="call-dialog" style="display: none;">
+                    <div>Params</div>
+                    <div id="params-container">
+                    </div>
+                    <div>
+                        <button class="btn btn-primary w-25">Call</button>
+                    </div>
+                    <span id="status"></span>
+                    <span id="response"></span>
+                </div>
             </div>
         </template>
 

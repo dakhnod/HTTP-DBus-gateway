@@ -9,8 +9,7 @@
                 "FLASK_DEBUG": "1"
             },
             "args": [
-                "run",
-                "--no-reload"
+                "run"
             ],
             "jinja": true,
             "justMyCode": false
