@@ -8,7 +8,7 @@ async function callDbusMethod(bus_name, interface_, path, method, args = []) {
     if (!path){
         path = '-'
     }
-    
+
     const url = `/api/by-interface/${interface_}/by-path/${path}/methods/${method}?bus_name=${bus_name}`;
 
     const response = await fetch(url, {
@@ -47,13 +47,22 @@ for (const bus_name of busses) {
     $('#bus-name', busContainer).text(bus_name)
     $('#bus-name', busContainer).click(loadBus)
 
+    let busLoaded = false
+
     async function loadBus(event) {
-        const response = await fetch(`/api/busses/${bus_name}`)
-        const bus_data = await response.json()
+        if(busLoaded){
+            $('#paths-container', busContainer).empty()
+            busLoaded = false
+            return
+        }
 
         $('#paths-container', busContainer).append('Loading bus...')
 
+        const response = await fetch(`/api/busses/${bus_name}`)
+        const bus_data = await response.json()
+
         $('#paths-container', busContainer).empty()
+        busLoaded = true
 
         for (const path of bus_data.paths) {
             const pathTemplate = $('#path-template').contents().clone()
