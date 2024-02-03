@@ -116,6 +116,17 @@ async def call_method(interface: str, path: str, method: str):
         method = getattr(interface, f'call_{method.lower()}')
         payload = await quart.request.json
         response = await method(*payload.get('args', []))
+
+        def iterate_fix(object):
+            if isinstance(object, dict):
+                for key, value in object.items():
+                    if isinstance(value, dbus_next.signature.Variant):
+                        object[key] = value.value
+                    else:
+                        iterate_fix(value)
+
+        iterate_fix(response)
+
         return {
             'response': response 
         }
