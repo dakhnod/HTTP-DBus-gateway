@@ -121,9 +121,10 @@ async def call_method(interface: str, path: str, method: str):
             if isinstance(object, dict):
                 for key, value in object.items():
                     if isinstance(value, dbus_next.signature.Variant):
-                        object[key] = value.value
-                    elif isinstance(value, bytes):
-                        object[key] = list(bytes)
+                        if isinstance(value.value, bytes):
+                            object[key] = list(value.value)
+                        else:
+                            object[key] = value.value
                     else:
                         iterate_fix(value)
 
