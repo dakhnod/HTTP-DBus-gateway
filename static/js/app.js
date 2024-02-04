@@ -5,7 +5,7 @@ async function getAllBusses() {
 async function callDbusMethod(bus_name, interface_, path, method, args = []) {
     path = path.substr(1)
 
-    if (!path){
+    if (!path) {
         path = '-'
     }
 
@@ -50,7 +50,7 @@ for (const bus_name of busses) {
     let busLoaded = false
 
     async function loadBus(event) {
-        if(busLoaded){
+        if (busLoaded) {
             $('#paths-container', busContainer).empty()
             busLoaded = false
             return
@@ -72,74 +72,133 @@ for (const bus_name of busses) {
                 const interfaceTemplatae = $('#interface-template').contents().clone()
                 $('#name', interfaceTemplatae).text(interface_.name)
 
-                for (const method of interface_.methods) {
-                    const methodTemplate = $('#member-template').contents().clone()
+                function displayMember (members_key, label, signature_key, buttons) {
+                    for (const member of interface_[members_key]) {
+                        const memberTemplate = $('#member-template').contents().clone()
 
-                    const argumentsVerbose = []
-                    const argumentMapping = {
-                        's': ['string', 'text'],
-                        'v': ['variant'],
-                        'y': ['byte', 'number', 0, 255],
-                        'b': ['boolean', 'number', 0, 1],
-                        'n': ['int16', 'number', -32.768, 32.767],
-                        'q': ['uint16', 'number', 0, 65.535],
-                        'i': ['int32', 'number'],
-                        'u': ['uint32', 'number'],
-                        'x': ['int64', 'number'],
-                        't': ['uint64', 'number'],
-                        'd': ['double', 'number'],
-                        'h': ['unix_fd']
-                    }
+                        memberTemplate[1].dataset.dbusBusName = bus_name
+                        memberTemplate[1].dataset.dbusInterface = interface_.name
+                        memberTemplate[1].dataset.dbusPath = path.path
+                        memberTemplate[1].dataset.dbusMember = member.name
 
-                    const argumentInputs = []
-                    const argumentContainer = $('#params-container', methodTemplate)
-                    for (const argument of method.in_signature) {
-                        const argument_params = argumentMapping[argument]
-                        if (argument_params == undefined) {
-                            argumentsVerbose.push(argument)
-                            continue
-                        }
-                        argumentsVerbose.push(argument_params[0])
-
-                        const input = $('<input>')[0]
-                        input.style.width = '25%'
-                        input.classList.add('form-control')
-                        input.placeholder = argument_params[0]
-                        input.type = argument_params[1]
-                        if (argument_params[1] == 'number') {
-                            input.min = argument_params[2] ?? ''
-                            input.max = argument_params[3] ?? ''
+                        const argumentsVerbose = []
+                        const argumentMapping = {
+                            's': ['string', 'text'],
+                            'v': ['variant'],
+                            'y': ['byte', 'number', 0, 255],
+                            'b': ['boolean', 'number', 0, 1],
+                            'n': ['int16', 'number', -32.768, 32.767],
+                            'q': ['uint16', 'number', 0, 65.535],
+                            'i': ['int32', 'number'],
+                            'u': ['uint32', 'number'],
+                            'x': ['int64', 'number'],
+                            't': ['uint64', 'number'],
+                            'd': ['double', 'number'],
+                            'h': ['unix_fd']
                         }
 
-                        argumentContainer.append(input)
-                        argumentInputs.push([argument_params[1], input])
-                    }
-
-                    $('button', methodTemplate).click(async function (_) {
-                        const inputs = argumentInputs.map(input => {
-                            let value = input[1].value
-                            if (input[0] == 'number') {
-                                value = Number(value)
+                        const argumentInputs = []
+                        const argumentContainer = $('#params-container', memberTemplate)
+                        for (const argument of member[signature_key]) {
+                            const argument_params = argumentMapping[argument]
+                            if (argument_params == undefined) {
+                                argumentsVerbose.push(argument)
+                                continue
                             }
-                            return value
-                        })
-                        try {
-                            const result = await callDbusMethod(bus_name, interface_.name, path.path, method.name, inputs)
-                            $('#status', methodTemplate).text('success:')
-                            $('#status', methodTemplate).css({ color: 'green' })
-                            $('#response', methodTemplate).text(JSON.stringify(result))
-                        } catch (e) {
-                            $('#status', methodTemplate).text('error:')
-                            $('#status', methodTemplate).css({ color: 'red' })
-                            $('#response', methodTemplate).text(e)
+                            argumentsVerbose.push(argument_params[0])
+
+                            const input = $('<input>')[0]
+                            input.style.width = '25%'
+                            input.classList.add('form-control')
+                            input.placeholder = argument_params[0]
+                            input.type = argument_params[1]
+                            if (argument_params[1] == 'number') {
+                                input.min = argument_params[2] ?? ''
+                                input.max = argument_params[3] ?? ''
+                            }
+
+                            argumentContainer.append(input)
+                            argumentInputs.push([argument_params[1], input])
                         }
-                    })
 
-                    $('#name', methodTemplate).text(`${method.name}(${argumentsVerbose.concat()})`)
-                    $('#name', methodTemplate).click(_ => $('#call-dialog', methodTemplate).show())
+                        for(const buttonLabel in buttons){
+                            const buttonElement = $('#member-button-template').contents().clone()
+                            $('button', buttonElement).text(buttonLabel)
+                            $('button', buttonElement).click(async function (_) {
+                                const inputs = argumentInputs.map(input => {
+                                    let value = input[1].value
+                                    if (input[0] == 'number') {
+                                        value = Number(value)
+                                    }
+                                    return value
+                                })
+                                buttons[buttonLabel](bus_name, interface_.name, path.path, member.name, inputs)
+                            })
+                            $('#button-container', memberTemplate).append(buttonElement)
+                        }
+ 
 
-                    $('#members-container', interfaceTemplatae).append(methodTemplate)
+                        $('#name', memberTemplate).text(`${member.name}(${argumentsVerbose.concat()})`)
+                        $('#member-label', memberTemplate).text(label)
+                        $('#name-container', memberTemplate).click(_ => $('#call-dialog', memberTemplate).toggle())
+
+                        $('#members-container', interfaceTemplatae).append(memberTemplate)
+                    }
                 }
+
+                function getTextForMember(busName, interfaceName, path, member) {
+                    const query = `[data-dbus-bus-name="${busName}"][data-dbus-interface="${interfaceName}"][data-dbus-path="${path}"][data-dbus-member="${member}"]`
+                    return [
+                        $(`${query} #status`),
+                        $(`${query} #response`)
+                    ]
+                }
+
+                displayMember('methods', 'method', 'in_signature', {
+                    'call': async function(busName, interfaceName, path, method, inputs){
+                        const [status, response] = getTextForMember(busName, interfaceName, path, method)
+                        try {
+                            const result = await callDbusMethod(busName, interfaceName, path, method, inputs)
+                            status.text('success:')
+                            status.css({ color: 'green' })
+                            response.text(JSON.stringify(result))
+                        } catch (e) {
+                            status.text('error:')
+                            status.css({ color: 'red' })
+                            response.text(e)
+                        }
+                    }
+                })
+                displayMember('properties', 'property', 'signature', {
+                    'get': async function(busName, interfaceName, path, member, inputs){
+                        const [status, response] = getTextForMember(busName, interfaceName, path, member)
+                        try {
+                            const args = [interfaceName, member]
+                            const result = await callDbusMethod(busName, 'org.freedesktop.DBus.Properties', path, 'Get', args)
+                            status.text('success, value:')
+                            status.css({ color: 'green' })
+                            response.text(result)
+                        } catch (e) {
+                            status.text('error:')
+                            status.css({ color: 'red' })
+                            response.text(e)
+                        }
+                    },
+                    'set': async function(busName, interfaceName, path, member, inputs){
+                        const [status, response] = getTextForMember(busName, interfaceName, path, member)
+                        try {
+                            const args = [interfaceName, member, inputs[0]]
+                            const result = await callDbusMethod(busName, 'org.freedesktop.DBus.Properties', path, 'Set', args)
+                            status.text('success, value:')
+                            status.css({ color: 'green' })
+                            response.text(inputs[0])
+                        } catch (e) {
+                            status.text('error:')
+                            status.css({ color: 'red' })
+                            response.text(e)
+                        }
+                    }
+                })
 
                 $('#interfaces-container', pathTemplate).append(interfaceTemplatae)
             }

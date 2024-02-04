@@ -47,17 +47,25 @@
 
         <template id="member-template">
             <div class="member-instance">
-                <div id="name"></div>
+                <div id="name-container">
+                    <span class="fw-lighter" id="member-label"></span>
+                    <span id="name"></span>
+                </div>
                 <div id="call-dialog" style="display: none;">
                     <div>Params</div>
                     <div id="params-container">
                     </div>
-                    <div>
-                        <button class="btn btn-primary w-25">Call</button>
+                    <div id="button-container">
                     </div>
                     <span id="status"></span>
                     <span id="response"></span>
                 </div>
+            </div>
+        </template>
+
+        <template id="member-button-template">
+            <div class="mt-1">
+                <button class="btn btn-primary w-25"></button>
             </div>
         </template>
 

@@ -39,7 +39,9 @@ async def inspect_bus(bus: str):
             for interface in introspection.interfaces:
                 interface_object = {
                     'name': interface.name,
-                    'methods': []
+                    'methods': [],
+                    'properties': [],
+                    'signals': []
                 }
 
                 for method in interface.methods:
@@ -49,6 +51,20 @@ async def inspect_bus(bus: str):
                         'out_signature': method.out_signature
                     }
                     interface_object['methods'].append(method_object)
+
+                for property in interface.properties:
+                    property_objects = {
+                        'name': property.name,
+                        'signature': property.signature
+                    }
+                    interface_object['properties'].append(property_objects)
+
+                for signal in interface.signals:
+                    signal_object = {
+                        'name': signal.name,
+                        'signature': signal.signature
+                    }
+                    interface_object['signals'].append(signal_object)
 
                 path_object['interfaces'].append(interface_object)
 
@@ -101,8 +117,6 @@ async def call_method(interface: str, path: str, method: str):
         path = f'/{path}'
         bus_name = quart.request.args.get('bus_name', interface)
 
-        method = to_snake_case.sub('_', method).lower()
-
         introspection = await app.bus.introspect(
             bus_name=bus_name,
             path=path
@@ -113,25 +127,35 @@ async def call_method(interface: str, path: str, method: str):
             introspection=introspection
         )
         interface = proxy.get_interface(interface)
-        method = getattr(interface, f'call_{method.lower()}')
         payload = await quart.request.json
-        response = await method(*payload.get('args', []))
+        args = payload.get('args', [])
+        for meta in interface.introspection.methods:
+            if meta.name == method:
+                for i in range(len(meta.in_args)):
+                    if meta.in_args[i].signature == 'v':
+                        args[i] = dbus_next.signature.Variant(type(args[i]).__name__[0], args[i])
+
+        method = to_snake_case.sub('_', method).lower()
+        method = getattr(interface, f'call_{method.lower()}')
+        
+        response = await method(*args)
 
         def iterate_fix(object):
             if isinstance(object, dict):
                 for key, value in object.items():
-                    if isinstance(value, dbus_next.signature.Variant):
-                        if isinstance(value.value, bytes):
-                            object[key] = list(value.value)
-                        else:
-                            object[key] = value.value
-                    else:
-                        iterate_fix(value)
+                    object[key] = iterate_fix(value)
+            elif isinstance(object, list):
+                for key, value in enumerate(object):
+                    object[key] = iterate_fix(value)
+            elif isinstance(object, bytes):
+                return list(object.value)
+            elif isinstance(object, dbus_next.signature.Variant):
+                return iterate_fix(object.value)
 
-        iterate_fix(response)
+            return object
 
         return {
-            'response': response 
+            'response': iterate_fix(response) 
         }
     except Exception as e:
         return {
