@@ -55,7 +55,8 @@ async def inspect_bus(bus: str):
                 for property in interface.properties:
                     property_objects = {
                         'name': property.name,
-                        'signature': property.signature
+                        'signature': property.signature,
+                        'access': property.access.value
                     }
                     interface_object['properties'].append(property_objects)
 
