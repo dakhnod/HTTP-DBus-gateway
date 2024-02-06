@@ -1,0 +1,9 @@
+[project]
+name = "http-dbus-gateway"
+dependencies = [
+    "quart",
+    "dbus-next"
+]
+
+[project.scripts]
+http-dbus-gateway = "quart"
