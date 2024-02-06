@@ -1,9 +1,6 @@
 import quart
 import asyncio
-import json
 import dbus_next
-import threading
-import functools
 import re
 
 
