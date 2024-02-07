@@ -72,7 +72,7 @@ for (const bus_name of busses) {
                 const interfaceTemplatae = $('#interface-template').contents().clone()
                 $('#name', interfaceTemplatae).text(interface_.name)
 
-                function displayMember (members_key, label, signature_key, buttons) {
+                function displayMember(members_key, label, signature_key, buttons) {
                     for (const member of interface_[members_key]) {
                         const memberTemplate = $('#member-template').contents().clone()
 
@@ -121,9 +121,9 @@ for (const bus_name of busses) {
                             argumentInputs.push([argument_params[1], input])
                         }
 
-                        for(const buttonLabel in buttons){
+                        for (const button of buttons) {
                             const buttonElement = $('#member-button-template').contents().clone()
-                            $('button', buttonElement).text(buttonLabel)
+                            $('button', buttonElement).text(button.label)
                             $('button', buttonElement).click(async function (_) {
                                 const inputs = argumentInputs.map(input => {
                                     let value = input[1].value
@@ -132,11 +132,14 @@ for (const bus_name of busses) {
                                     }
                                     return value
                                 })
-                                buttons[buttonLabel](bus_name, interface_.name, path.path, member.name, inputs)
+                                button.callback(bus_name, interface_.name, path.path, member.name, inputs)
                             })
+                            if(button.enabled && !button.enabled(member)){
+                                $('button', buttonElement).prop('disabled', true)
+                            }
                             $('#button-container', memberTemplate).append(buttonElement)
                         }
- 
+
 
                         $('#name', memberTemplate).text(`${member.name}(${argumentsVerbose.concat()})`)
                         $('#member-label', memberTemplate).text(label)
@@ -154,8 +157,9 @@ for (const bus_name of busses) {
                     ]
                 }
 
-                displayMember('methods', 'method', 'in_signature', {
-                    'call': async function(busName, interfaceName, path, method, inputs){
+                displayMember('methods', 'method', 'in_signature', [{
+                    label: 'call',
+                    callback: async function (busName, interfaceName, path, method, inputs) {
                         const [status, response] = getTextForMember(busName, interfaceName, path, method)
                         try {
                             const result = await callDbusMethod(busName, interfaceName, path, method, inputs)
@@ -168,37 +172,43 @@ for (const bus_name of busses) {
                             response.text(e)
                         }
                     }
-                })
-                displayMember('properties', 'property', 'signature', {
-                    'get': async function(busName, interfaceName, path, member, inputs){
-                        const [status, response] = getTextForMember(busName, interfaceName, path, member)
-                        try {
-                            const args = [interfaceName, member]
-                            const result = await callDbusMethod(busName, 'org.freedesktop.DBus.Properties', path, 'Get', args)
-                            status.text('success, value:')
-                            status.css({ color: 'green' })
-                            response.text(result)
-                        } catch (e) {
-                            status.text('error:')
-                            status.css({ color: 'red' })
-                            response.text(e)
-                        }
-                    },
-                    'set': async function(busName, interfaceName, path, member, inputs){
-                        const [status, response] = getTextForMember(busName, interfaceName, path, member)
-                        try {
-                            const args = [interfaceName, member, inputs[0]]
-                            const result = await callDbusMethod(busName, 'org.freedesktop.DBus.Properties', path, 'Set', args)
-                            status.text('success, value:')
-                            status.css({ color: 'green' })
-                            response.text(inputs[0])
-                        } catch (e) {
-                            status.text('error:')
-                            status.css({ color: 'red' })
-                            response.text(e)
-                        }
-                    }
-                })
+                }])
+                displayMember('properties', 'property', 'signature', [
+                    {
+                        label: 'get',
+                        callback: async function (busName, interfaceName, path, member, inputs) {
+                            const [status, response] = getTextForMember(busName, interfaceName, path, member)
+                            try {
+                                const args = [interfaceName, member]
+                                const result = await callDbusMethod(busName, 'org.freedesktop.DBus.Properties', path, 'Get', args)
+                                status.text('success, value:')
+                                status.css({ color: 'green' })
+                                response.text(result)
+                            } catch (e) {
+                                status.text('error:')
+                                status.css({ color: 'red' })
+                                response.text(e)
+                            }
+                        },
+                        enabled: property => property.access.includes('read')
+                    }, {
+                        label: 'set',
+                        callback: async function (busName, interfaceName, path, member, inputs) {
+                            const [status, response] = getTextForMember(busName, interfaceName, path, member)
+                            try {
+                                const args = [interfaceName, member, inputs[0]]
+                                const result = await callDbusMethod(busName, 'org.freedesktop.DBus.Properties', path, 'Set', args)
+                                status.text('success, value:')
+                                status.css({ color: 'green' })
+                                response.text(inputs[0])
+                            } catch (e) {
+                                status.text('error:')
+                                status.css({ color: 'red' })
+                                response.text(e)
+                            }
+                        },
+                        enabled: property => property.access.includes('write')
+                    }])
 
                 $('#interfaces-container', pathTemplate).append(interfaceTemplatae)
             }
