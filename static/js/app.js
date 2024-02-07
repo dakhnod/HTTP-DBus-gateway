@@ -72,7 +72,7 @@ for (const bus_name of busses) {
                 const interfaceTemplatae = $('#interface-template').contents().clone()
                 $('#name', interfaceTemplatae).text(interface_.name)
 
-                function displayMember(members_key, label, signature_key, buttons) {
+                function displayMember(members_key, label, signature_key, buttons, displayInputs) {
                     for (const member of interface_[members_key]) {
                         const memberTemplate = $('#member-template').contents().clone()
 
@@ -99,7 +99,7 @@ for (const bus_name of busses) {
 
                         const argumentInputs = []
                         const argumentContainer = $('#params-container', memberTemplate)
-                        if(member.access != 'read'){
+                        if (!displayInputs || displayInputs(member)) {
                             for (const argument of member[signature_key]) {
                                 const argument_params = argumentMapping[argument]
                                 if (argument_params == undefined) {
@@ -136,7 +136,8 @@ for (const bus_name of busses) {
                                 })
                                 button.callback(bus_name, interface_.name, path.path, member.name, inputs)
                             })
-                            if(button.enabled && !button.enabled(member)){
+                            $('button', buttonElement).attr('id', `button-${button.label}`)
+                            if (button.enabled && !button.enabled(member)) {
                                 $('button', buttonElement).prop('disabled', true)
                             }
                             $('#button-container', memberTemplate).append(buttonElement)
@@ -151,12 +152,9 @@ for (const bus_name of busses) {
                     }
                 }
 
-                function getTextForMember(busName, interfaceName, path, member) {
+                function getTextForMember(busName, interfaceName, path, member, ...ids) {
                     const query = `[data-dbus-bus-name="${busName}"][data-dbus-interface="${interfaceName}"][data-dbus-path="${path}"][data-dbus-member="${member}"]`
-                    return [
-                        $(`${query} #status`),
-                        $(`${query} #response`)
-                    ]
+                    return ids.map(id => $(`${query} #${id}`))
                 }
 
                 displayMember('methods', 'method', 'in_signature', [{
@@ -179,7 +177,7 @@ for (const bus_name of busses) {
                     {
                         label: 'get',
                         callback: async function (busName, interfaceName, path, member, inputs) {
-                            const [status, response] = getTextForMember(busName, interfaceName, path, member)
+                            const [status, response] = getTextForMember(busName, interfaceName, path, member, 'status', 'response')
                             try {
                                 const args = [interfaceName, member]
                                 const result = await callDbusMethod(busName, 'org.freedesktop.DBus.Properties', path, 'Get', args)
@@ -196,7 +194,7 @@ for (const bus_name of busses) {
                     }, {
                         label: 'set',
                         callback: async function (busName, interfaceName, path, member, inputs) {
-                            const [status, response] = getTextForMember(busName, interfaceName, path, member)
+                            const [status, response] = getTextForMember(busName, interfaceName, path, member, 'status', 'response')
                             try {
                                 const args = [interfaceName, member, inputs[0]]
                                 const result = await callDbusMethod(busName, 'org.freedesktop.DBus.Properties', path, 'Set', args)
@@ -210,7 +208,44 @@ for (const bus_name of busses) {
                             }
                         },
                         enabled: property => property.access.includes('write')
-                    }])
+                    }], member => member.access != 'read')
+
+                const websockets = {}
+                displayMember('signals', 'signal', 'signature', [{
+                    label: 'connect',
+                    callback: async function(busName, interfaceName, path, member, inputs) {
+                        const [status, response, signals, button] = getTextForMember(busName, interfaceName, path, member, 'status', 'response', 'signals', 'button-connect')
+                        const search = `interface=${interfaceName}&path=${path}&member=${member}`
+                        if(button.text() == 'connect'){
+                            status.text('connecting...')
+                            try {
+                                const websocket = new WebSocket(`${location.protocol.replace('http', 'ws')}//${location.host}/api/signals?${search}`)
+                                let signal_history = []
+                                websocket.addEventListener('message', function(message){
+                                    console.log(message.data)
+                                    const parsed = JSON.parse(message.data)
+                                    signal_history.push(JSON.stringify(parsed.args))
+                                    signal_history = signal_history.splice(-5)
+                                    signals.html(signal_history.join('<br>'))
+                                })
+                                websockets[search] = websocket
+                                button.text('disconnect')
+                                status.text('connected, signals:')
+                                status.css({ color: 'green' })
+                            } catch (e) {
+                                status.text('error:')
+                                status.css({ color: 'red' })
+                                response.text(e)
+                            }
+                        }else{
+                            websockets[search].close()
+                            button.text('connect')
+                            status.text('')
+                            signals.text('')
+                            status.css({ color: 'green' })
+                        }
+                    }
+                }], _ => false)
 
                 $('#interfaces-container', pathTemplate).append(interfaceTemplatae)
             }
