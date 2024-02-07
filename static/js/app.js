@@ -99,26 +99,28 @@ for (const bus_name of busses) {
 
                         const argumentInputs = []
                         const argumentContainer = $('#params-container', memberTemplate)
-                        for (const argument of member[signature_key]) {
-                            const argument_params = argumentMapping[argument]
-                            if (argument_params == undefined) {
-                                argumentsVerbose.push(argument)
-                                continue
-                            }
-                            argumentsVerbose.push(argument_params[0])
+                        if(member.access != 'read'){
+                            for (const argument of member[signature_key]) {
+                                const argument_params = argumentMapping[argument]
+                                if (argument_params == undefined) {
+                                    argumentsVerbose.push(argument)
+                                    continue
+                                }
+                                argumentsVerbose.push(argument_params[0])
 
-                            const input = $('<input>')[0]
-                            input.style.width = '25%'
-                            input.classList.add('form-control')
-                            input.placeholder = argument_params[0]
-                            input.type = argument_params[1]
-                            if (argument_params[1] == 'number') {
-                                input.min = argument_params[2] ?? ''
-                                input.max = argument_params[3] ?? ''
-                            }
+                                const input = $('<input>')[0]
+                                input.style.width = '25%'
+                                input.classList.add('form-control')
+                                input.placeholder = argument_params[0]
+                                input.type = argument_params[1]
+                                if (argument_params[1] == 'number') {
+                                    input.min = argument_params[2] ?? ''
+                                    input.max = argument_params[3] ?? ''
+                                }
 
-                            argumentContainer.append(input)
-                            argumentInputs.push([argument_params[1], input])
+                                argumentContainer.append(input)
+                                argumentInputs.push([argument_params[1], input])
+                            }
                         }
 
                         for (const button of buttons) {
