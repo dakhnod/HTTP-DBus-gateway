@@ -220,13 +220,17 @@ for (const bus_name of busses) {
                             status.text('connecting...')
                             try {
                                 const websocket = new WebSocket(`${location.protocol.replace('http', 'ws')}//${location.host}/api/signals?${search}`)
-                                let signal_history = []
                                 websocket.addEventListener('message', function(message){
                                     console.log(message.data)
                                     const parsed = JSON.parse(message.data)
-                                    signal_history.push(JSON.stringify(parsed.args))
-                                    signal_history = signal_history.splice(-5)
-                                    signals.html(signal_history.join('<br>'))
+                                    const newSpan = $(`<div>`)
+                                    newSpan.css({ 'animation-name': 'signal-new', 'animation-duration': '1s'})
+                                    newSpan.text(JSON.stringify(parsed.args))
+                                    signals.append(newSpan)
+
+                                    for(let length = signals.children().length; length > 10; length--){
+                                        signals.children()[0].remove()
+                                    }
                                 })
                                 websockets[search] = websocket
                                 button.text('disconnect')

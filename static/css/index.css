@@ -25,3 +25,13 @@
     margin: 2px;
     background-color: #9999ff;
 }
+
+@keyframes signal-new {
+    from {
+        background-color: #00ff00aa;
+    }
+
+    to {
+        background-color: #00000000;
+    }
+}
