@@ -183,12 +183,3 @@ async def call_method(interface: str, path: str, method: str):
         return {
             'error': str(e)
         }, 500
-    
-@app.after_request
-def append_cors(response):
-    response.headers.add('Access-Control-Allow-Origin', '*')
-    response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
-    response.headers.add('Access-Control-Allow-Methods', 'POST')
-    return response
-
-# asyncio.run_coroutine_threadsafe(init(), asyncio.get_event_loop())
