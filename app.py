@@ -79,33 +79,71 @@ async def inspect_bus(bus: str):
 async def handle_signal_websocket():
     await quart.websocket.accept()
 
-    disconnected_event = asyncio.Event()
 
-    def signal_handler(*args, **kwargs):
-        async def run_async():
-            try:
-                await quart.websocket.send({
-                    'interface': kwargs.get('_interface'),
-                    'path': kwargs.get('_path'),
-                    'member': kwargs.get('_member'),
-                    'args': args
-                })
-            except asyncio.CancelledError:
-                print(f'WebSocket probably disconnected')
-                await disconnected_event.set()
-                raise
+    args = quart.websocket.args
 
-    connection = session.add_signal_receiver(
-        signal_handler,
-        **quart.websocket.args,
-        interface_keyword='_interface',
-        path_keyword='_path',
-        member_keyword='_member',
+    match_rule = str.join(',', [f'{key}={value}' for key, value in args.items()])
+
+    introspection = await app.bus.introspect(
+        bus_name='org.freedesktop.DBus',
+        path='/'
     )
-    
-    await disconnected_event.wait()
+    proxy = app.bus.get_proxy_object(
+        bus_name='org.freedesktop.DBus',
+        path='/',
+        introspection=introspection
+    )
+    interface = proxy.get_interface('org.freedesktop.DBus')
 
-    connection.remove()
+    send_json = quart.websocket.send_json
+    async def run_async(message: dbus_next.message.Message):
+        await send_json({
+            'interface': message.interface,
+            'path': message.path,
+            'member': message.member,
+            'sender': message.sender,
+            'args': unpack_variants(message.body),
+        })
+
+    def message_handler(message: dbus_next.message.Message):
+        if message.message_type != dbus_next.constants.MessageType.SIGNAL:
+            return
+        
+        for key, value in args.items():
+            if getattr(message, key) != value:
+                return
+            
+        asyncio.create_task(run_async(message))
+
+    app.bus.add_message_handler(message_handler)
+    await interface.call_add_match(match_rule)
+    
+    try:
+        while True:
+            await quart.websocket.receive()
+            print('received upstream')
+    except:
+        pass
+
+    print(f'WebSocket probably disconnected')
+    app.bus.remove_message_handler(message_handler)
+    await interface.call_remove_match(match_rule)
+    raise asyncio.CancelledError
+
+
+def unpack_variants(object):
+    if isinstance(object, dict):
+        for key, value in object.items():
+            object[key] = unpack_variants(value)
+    elif isinstance(object, list):
+        for key, value in enumerate(object):
+            object[key] = unpack_variants(value)
+    elif isinstance(object, bytes):
+        return list(object)
+    elif isinstance(object, dbus_next.signature.Variant):
+        return unpack_variants(object.value)
+
+    return object
 
 @app.post('/api/by-interface/<string:interface>/by-path/<path:path>/methods/<string:method>')
 async def call_method(interface: str, path: str, method: str):
@@ -138,22 +176,8 @@ async def call_method(interface: str, path: str, method: str):
         
         response = await method(*args)
 
-        def iterate_fix(object):
-            if isinstance(object, dict):
-                for key, value in object.items():
-                    object[key] = iterate_fix(value)
-            elif isinstance(object, list):
-                for key, value in enumerate(object):
-                    object[key] = iterate_fix(value)
-            elif isinstance(object, bytes):
-                return list(object)
-            elif isinstance(object, dbus_next.signature.Variant):
-                return iterate_fix(object.value)
-
-            return object
-
         return {
-            'response': iterate_fix(response) 
+            'response': unpack_variants(response) 
         }
     except Exception as e:
         return {
