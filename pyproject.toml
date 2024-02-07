@@ -7,4 +7,6 @@ dependencies = [
 ]
 
 [project.scripts]
-http-dbus-gateway = "quart"
+http-dbus-gateway = "quart.cli:main"
+
+[tool.setuptools.package-data]
