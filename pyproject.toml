@@ -1,5 +1,6 @@
 [project]
 name = "http-dbus-gateway"
+version = "0.0.1"
 dependencies = [
     "quart",
     "dbus-next"
