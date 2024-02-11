@@ -2,7 +2,7 @@ import quart
 import asyncio
 import dbus_next
 import re
-
+import types
 
 app = quart.Quart(__name__)
 
@@ -11,21 +11,31 @@ to_snake_case = re.compile(r'(?<!^)(?=[A-Z])')
 @app.before_serving
 async def init():
     print('running init...')
-    app.bus = await dbus_next.aio.MessageBus().connect()
+    app.dbus = types.SimpleNamespace()
+    app.dbus.connections = await asyncio.gather(*[dbus_next.aio.MessageBus(bus_type=type).connect() for type in dbus_next.constants.BusType])
 
 @app.get('/')
 def redirect_index():
     return quart.redirect('/static/html/index.html')
 
-@app.get('/api/busses/<string:bus>')
-async def inspect_bus(bus: str):
+@app.get('/api/connections')
+async def connections():
+    return [{
+        'id': app.dbus.connections.index(connection),
+        'name': connection._bus_address[0][1]['path']
+    } for connection in app.dbus.connections]
+
+@app.get('/api/connections/<int:connection_id>/busses/<string:bus>')
+async def inspect_bus(connection_id: int, bus: str):
     bus_object = {
         'name': bus,
         'paths': []
     }
 
+    connection = app.dbus.connections[connection_id]
+
     async def introspect_path(path=''):
-        introspection = await app.bus.introspect(bus, '/' if path == '' else path)
+        introspection = await connection.introspect(bus, '/' if path == '' else path)
 
         if len(introspection.interfaces) > 0:
             path_object = {
@@ -75,8 +85,8 @@ async def inspect_bus(bus: str):
     
     return bus_object
 
-@app.websocket('/api/signals')
-async def handle_signal_websocket():
+@app.websocket('/api/connections/<int:connection_id>/signals')
+async def handle_signal_websocket(connection_id: int):
     await quart.websocket.accept()
 
 
@@ -84,11 +94,13 @@ async def handle_signal_websocket():
 
     match_rule = str.join(',', [f'{key}={value}' for key, value in args.items()])
 
-    introspection = await app.bus.introspect(
+    connection = app.dbus.connections[connection_id]
+    
+    introspection = await connection.introspect(
         bus_name='org.freedesktop.DBus',
         path='/'
     )
-    proxy = app.bus.get_proxy_object(
+    proxy = connection.get_proxy_object(
         bus_name='org.freedesktop.DBus',
         path='/',
         introspection=introspection
@@ -115,7 +127,7 @@ async def handle_signal_websocket():
             
         asyncio.create_task(run_async(message))
 
-    app.bus.add_message_handler(message_handler)
+    connection.add_message_handler(message_handler)
     await interface.call_add_match(match_rule)
     
     try:
@@ -126,7 +138,7 @@ async def handle_signal_websocket():
         pass
 
     print(f'WebSocket probably disconnected')
-    app.bus.remove_message_handler(message_handler)
+    connection.remove_message_handler(message_handler)
     await interface.call_remove_match(match_rule)
     raise asyncio.CancelledError
 
@@ -145,19 +157,21 @@ def unpack_variants(object):
 
     return object
 
-@app.post('/api/by-interface/<string:interface>/by-path/<path:path>/methods/<string:method>')
-async def call_method(interface: str, path: str, method: str):
+@app.post('/api/connections/<int:connection_id>/by-interface/<string:interface>/by-path/<path:path>/methods/<string:method>')
+async def call_method(connection_id: int, interface: str, path: str, method: str):
     try:
         if path == '-':
             path = ''
         path = f'/{path}'
         bus_name = quart.request.args.get('bus_name', interface)
 
-        introspection = await app.bus.introspect(
+        connection = app.dbus.connections[connection_id]
+
+        introspection = await connection.introspect(
             bus_name=bus_name,
             path=path
         )
-        proxy = app.bus.get_proxy_object(
+        proxy = connection.get_proxy_object(
             bus_name=bus_name,
             path=path,
             introspection=introspection

@@ -1,6 +1,13 @@
-.bus-instance {
+.connection-instance {
     margin: 10px;
-    padding: 10px;
+    padding: 2px;
+    background-color: #eeeeff;
+    border-radius: 5px;
+}
+
+.bus-instance {
+    margin: 5px;
+    padding: 5px;
     background-color: #ddddff;
     border-radius: 5px;
 }
