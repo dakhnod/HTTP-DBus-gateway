@@ -3,6 +3,7 @@ import asyncio
 import dbus_next
 import re
 import types
+import os
 
 app = quart.Quart(__name__)
 
@@ -10,9 +11,20 @@ to_snake_case = re.compile(r'(?<!^)(?=[A-Z])')
 
 @app.before_serving
 async def init():
-    print('running init...')
+    connection_string = os.environ.get('DBUS_ADDRESS')
     app.dbus = types.SimpleNamespace()
-    app.dbus.connections = await asyncio.gather(*[dbus_next.aio.MessageBus(bus_type=type).connect() for type in dbus_next.constants.BusType])
+    if connection_string is None:
+        kwargs_key = 'bus_type'
+        kwargs_values = dbus_next.constants.BusType
+    else:
+        kwargs_key = 'bus_address'
+        kwargs_values = connection_string.split(';;')
+
+    # do we really need to use asyncio.gather here to parallelise initial, one-time connection establishment to two-ish endpoints?
+    # nope.
+    # are we still doing it because we can?
+    # yes.
+    app.dbus.connections = await asyncio.gather(*[dbus_next.aio.MessageBus(**{kwargs_key: value}).connect() for value in kwargs_values])
 
 @app.get('/')
 def redirect_index():
