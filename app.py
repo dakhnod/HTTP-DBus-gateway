@@ -191,11 +191,15 @@ async def call_method(connection_id: int, interface: str, path: str, method: str
         interface = proxy.get_interface(interface)
         payload = await quart.request.json
         args = payload.get('args', [])
+        
+        # convert in_args to types that the method expects
         for meta in interface.introspection.methods:
             if meta.name == method:
                 for i in range(len(meta.in_args)):
                     if meta.in_args[i].signature == 'v':
                         args[i] = dbus_next.signature.Variant(type(args[i]).__name__[0], args[i])
+                    elif meta.in_args[i].signature == 'b':
+                        args[i] = bool(args[i])
 
         method = to_snake_case.sub('_', method).lower()
         method = getattr(interface, f'call_{method.lower()}')
