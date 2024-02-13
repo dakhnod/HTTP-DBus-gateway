@@ -1,3 +1,7 @@
+[build-system]
+requires = ["flit_core<4"]
+build-backend = "flit_core.buildapi"
+
 [project]
 name = "http-dbus-gateway"
 version = "0.0.1"
@@ -5,8 +9,14 @@ dependencies = [
     "quart",
     "dbus-next"
 ]
+authors = [
+    {name = "Daniel Dakhno", email = "dakhnod@gmail.com"}
+]
+maintainers = [
+    {name = "Daniel Dakhno", email = "dakhnod@gmail.com"}
+]
+description = "HTTP to DBus Gateway with integrated browser UI"
 
-[project.scripts]
-http-dbus-gateway = "quart.cli:main"
-
-[tool.setuptools.package-data]
+[project.urls]
+Homepage = "https://github.com/dakhnod/HTTP-DBus-gateway"
+Repository = "https://github.com/dakhnod/HTTP-DBus-gateway"
