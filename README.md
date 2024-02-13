@@ -1,11 +1,14 @@
 # HTTP DBus Gateway
 
-![App Screenshot](https://github.com/dakhnod/HTTP-DBus-gateway/assets/26143255/61c34aaf-33ec-4462-9ca5-5f5f93365119)
+![App Screenshot](https://github.com/dakhnod/HTTP-DBus-gateway/assets/26143255/86998e1e-3044-493a-ac6a-dc156d86a548)
 
 This project aims to provide a way to acces your DBus by using just a browser on any device,
 including your smartwatch, smart fridge, smartphone and anything browser enabled.
 
 It tries to fix the exclusivity of great apps like D-Feet and D-Spy.
+
+Also, being API-first, you can use it to bridge non-dbus apps, programs and websites to DBus over HTTP.
+Websites can use HTTP-requests and WebSockets to access DBus through this gateway.
 
 ## Installation
 
