@@ -1,5 +1,7 @@
 # HTTP DBus Gateway
 
+![App Screenshot](https://github.com/dakhnod/HTTP-DBus-gateway/assets/26143255/61c34aaf-33ec-4462-9ca5-5f5f93365119)
+
 This project aims to provide a way to acces your DBus by using just a browser on any device,
 including your smartwatch, smart fridge, smartphone and anything browser enabled.
 
